@@ -7,7 +7,7 @@ Este paquete contiene Python puro:
 - Excepciones de dominio
 - Interfaces abstractas de repositorios
 
-Sin dependencias de FastAPI, SQLAlchemy, Supabase ni ningún framework.
+
 """
 from domain.entities import (
     Adoptante,
