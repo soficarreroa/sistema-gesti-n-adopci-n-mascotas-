@@ -1,11 +1,9 @@
-from .mascota import EstadoMascota, Mascota
+from .mascota import Mascota
 from .adoptante import Adoptante
-from .solicitud_adopcion import EstadoSolicitud, SolicitudAdopcion
+from .solicitud_adopcion import SolicitudAdopcion
 
 __all__ = [
-    "EstadoMascota",
     "Mascota",
     "Adoptante",
-    "EstadoSolicitud",
     "SolicitudAdopcion",
 ]

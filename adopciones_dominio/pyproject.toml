@@ -6,7 +6,7 @@ build-backend = "setuptools.backends.legacy:build"
 name = "adopciones-dominio"
 version = "0.1.0"
 description = "Capa de dominio — Sistema de gestión de adopciones de mascotas"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = []  # Cero dependencias: Python puro
 
 [project.optional-dependencies]
