@@ -1,26 +1,37 @@
-import psycopg2
-from dotenv import load_dotenv
-import os
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
-load_dotenv()
+from infrastructure.database.config import require_database_url
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+_async_engine: AsyncEngine | None = None
+_session_factory: async_sessionmaker[AsyncSession] | None = None
 
-try:
-    connection = psycopg2.connect(
-        DATABASE_URL,
-        sslmode="require"
+
+def _as_async_database_url(database_url: str) -> str:
+    if database_url.startswith("postgresql+asyncpg://"):
+        return database_url
+    if database_url.startswith("postgresql://"):
+        return database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    raise RuntimeError(
+        "DATABASE_URL debe iniciar con 'postgresql://' o 'postgresql+asyncpg://'."
     )
 
-    print("✅ Conexión exitosa a Supabase")
 
-    cursor = connection.cursor()
-    cursor.execute("SELECT 1")
-    print("📊 Test query:", cursor.fetchone())
+def get_async_engine() -> AsyncEngine:
+    global _async_engine
+    if _async_engine is None:
+        _async_engine = create_async_engine(
+            _as_async_database_url(require_database_url()),
+            pool_pre_ping=True,
+        )
+    return _async_engine
 
-    cursor.close()
-    connection.close()
 
-except Exception as e:
-    print("❌ Error de conexión:")
-    print(e)
+def get_session_factory() -> async_sessionmaker[AsyncSession]:
+    global _session_factory
+    if _session_factory is None:
+        _session_factory = async_sessionmaker(
+            bind=get_async_engine(),
+            class_=AsyncSession,
+            expire_on_commit=False,
+        )
+    return _session_factory
