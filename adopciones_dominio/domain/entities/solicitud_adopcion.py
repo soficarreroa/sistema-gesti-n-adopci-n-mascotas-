@@ -29,9 +29,11 @@ class SolicitudAdopcion:
             )
 
         mascota.estado = "en_proceso"
+        # Use timezone-aware UTC datetime for timestamptz columns
+        now_utc = datetime.now(timezone.utc)
         return cls(
             cedula=adoptante.cedula,
             codmascota=mascota.codmascota,
-            fechasolicitud=datetime.now(timezone.utc),
+            fechasolicitud=now_utc,
             estado="pendiente",
         )

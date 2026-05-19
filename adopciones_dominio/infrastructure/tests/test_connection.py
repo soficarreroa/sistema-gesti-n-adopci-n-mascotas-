@@ -1,30 +1,34 @@
-from sqlalchemy import create_engine, text
-from database.config import DATABASE_URL
+import asyncio
+from pathlib import Path
 
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+from dotenv import load_dotenv
+from sqlalchemy import text
 
-def test_connection():
-    try:
-        with engine.connect() as conn:
-            result = conn.execute(text("SELECT 1"))
-            print("✅ CONEXION EXITOSA:", result.fetchone())
+ROOT_ENV = Path(__file__).resolve().parents[3] / ".env"
+load_dotenv(ROOT_ENV)
 
-    except Exception as e:
-        print("❌ ERROR:", e)
+from infrastructure.database.connection import get_async_engine
 
 
-def test_db_info():
-    try:
-        with engine.connect() as conn:
-            result = conn.execute(text("""
-                SELECT current_database(), current_user
-            """))
-            print("📊 INFO DB:", result.fetchone())
+def test_connection() -> None:
+    async def _run() -> None:
+        engine = get_async_engine()
+        async with engine.connect() as conn:
+            result = await conn.execute(text("SELECT 1"))
+            assert result.scalar_one() == 1
+        await engine.dispose()
 
-    except Exception as e:
-        print("❌ ERROR INFO DB:", e)
+    asyncio.run(_run())
 
 
-if __name__ == "__main__":
-    test_connection()
-    test_db_info()
+def test_db_info() -> None:
+    async def _run() -> None:
+        engine = get_async_engine()
+        async with engine.connect() as conn:
+            result = await conn.execute(text("SELECT current_database(), current_user"))
+            db_name, db_user = result.one()
+            assert isinstance(db_name, str)
+            assert isinstance(db_user, str)
+        await engine.dispose()
+
+    asyncio.run(_run())

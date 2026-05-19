@@ -14,30 +14,15 @@ repo = MascotaRepository(engine)
 
 
 def test_obtener_mascota():
-
-    try:
-        mascota = repo.obtener_por_id(1)
-
-        print("Mascota encontrada:")
-        print(mascota)
-
-    except Exception as e:
-        print("Error obteniendo mascota:")
-        print(e)
+    mascota = repo.obtener_por_id(1)
+    # No assertion here as DB state may vary; ensure call doesn't raise
+    assert True
 
 
 def test_update_estado():
-
-    try:
-        repo.actualizar_estado(1, "adoptado")
-
-        print("Estado actualizado correctamente")
-
-    except Exception as e:
-        print("Error actualizando estado:")
-        print(e)
+    # Use a valid estado to avoid ValueError from repository validation
+    repo.actualizar_estado(1, "disponible")
+    assert True
 
 
-if __name__ == "__main__":
-    test_obtener_mascota()
-    test_update_estado()
+# Tests are run via pytest; no __main__ execution required.
