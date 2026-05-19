@@ -33,63 +33,94 @@ class StubMascotaRepo:
         return None
 
 
-def _client_with_overrides(solicitud_repo: StubSolicitudRepo, mascota_repo: StubMascotaRepo) -> TestClient:
+def _client_with_overrides(
+    solicitud_repo: StubSolicitudRepo, mascota_repo: StubMascotaRepo
+) -> TestClient:
     app.dependency_overrides[get_solicitud_repo] = lambda: solicitud_repo
     app.dependency_overrides[get_mascota_repo] = lambda: mascota_repo
     return TestClient(app)
 
 
-def test_post_solicitudes_201() -> None:
-    solicitud_repo = StubSolicitudRepo()
-    mascota_repo = StubMascotaRepo(Mascota(codmascota=10, nombre="Luna", estado="disponible"))
-    client = _client_with_overrides(solicitud_repo, mascota_repo)
-
-    response = client.post("/api/v1/solicitudes", json={"cedula": "1001", "codmascota": 10})
-
+def _clear_overrides() -> None:
     app.dependency_overrides.clear()
+
+
+def test_post_solicitudes_201() -> None:
+    client = _client_with_overrides(
+        solicitud_repo=StubSolicitudRepo(),
+        mascota_repo=StubMascotaRepo(Mascota(codmascota=10, nombre="Luna", estado="disponible")),
+    )
+    response = client.post("/api/v1/solicitudes", json={"cedula": "1001", "codmascota": 10})
+    _clear_overrides()
+
     assert response.status_code == 201
     assert response.json()["estado"] == "pendiente"
 
 
 def test_post_solicitudes_409() -> None:
-    solicitud_repo = StubSolicitudRepo(
-        activas=[
-            SolicitudAdopcion(
-                cedula="1001",
-                codmascota=7,
-                fechasolicitud=datetime.now(timezone.utc),
-                estado="pendiente",
-            )
-        ]
+    client = _client_with_overrides(
+        solicitud_repo=StubSolicitudRepo(
+            activas=[
+                SolicitudAdopcion(
+                    cedula="1001",
+                    codmascota=7,
+                    fechasolicitud=datetime.now(timezone.utc),
+                    estado="pendiente",
+                )
+            ]
+        ),
+        mascota_repo=StubMascotaRepo(Mascota(codmascota=10, nombre="Luna", estado="disponible")),
     )
-    mascota_repo = StubMascotaRepo(Mascota(codmascota=10, nombre="Luna", estado="disponible"))
-    client = _client_with_overrides(solicitud_repo, mascota_repo)
-
     response = client.post("/api/v1/solicitudes", json={"cedula": "1001", "codmascota": 10})
+    _clear_overrides()
 
-    app.dependency_overrides.clear()
     assert response.status_code == 409
     assert response.json()["code"] == "MAX_SOLICITUDES_EXCEDIDO"
 
 
+def test_post_solicitudes_422() -> None:
+    client = _client_with_overrides(
+        solicitud_repo=StubSolicitudRepo(),
+        mascota_repo=StubMascotaRepo(Mascota(codmascota=10, nombre="Luna", estado="en_proceso")),
+    )
+    response = client.post("/api/v1/solicitudes", json={"cedula": "1001", "codmascota": 10})
+    _clear_overrides()
+
+    assert response.status_code == 422
+    assert response.json()["code"] == "MASCOTA_NO_DISPONIBLE"
+
+
+def test_post_solicitudes_400_por_payload_invalido() -> None:
+    client = _client_with_overrides(
+        solicitud_repo=StubSolicitudRepo(),
+        mascota_repo=StubMascotaRepo(Mascota(codmascota=10, nombre="Luna", estado="disponible")),
+    )
+    response = client.post("/api/v1/solicitudes", json={"cedula": "1001"})
+    _clear_overrides()
+
+    assert response.status_code == 400
+    assert response.json()["code"] == "BAD_REQUEST"
+
+
 def test_get_mascota_disponible_200_true() -> None:
-    solicitud_repo = StubSolicitudRepo()
-    mascota_repo = StubMascotaRepo(Mascota(codmascota=50, nombre="Nina", estado="disponible"))
-    client = _client_with_overrides(solicitud_repo, mascota_repo)
-
+    client = _client_with_overrides(
+        solicitud_repo=StubSolicitudRepo(),
+        mascota_repo=StubMascotaRepo(Mascota(codmascota=50, nombre="Nina", estado="disponible")),
+    )
     response = client.get("/api/v1/mascotas/50/disponible")
+    _clear_overrides()
 
-    app.dependency_overrides.clear()
     assert response.status_code == 200
     assert response.json()["disponible"] is True
 
 
 def test_get_mascota_disponible_404() -> None:
-    solicitud_repo = StubSolicitudRepo()
-    mascota_repo = StubMascotaRepo(None)
-    client = _client_with_overrides(solicitud_repo, mascota_repo)
-
+    client = _client_with_overrides(
+        solicitud_repo=StubSolicitudRepo(),
+        mascota_repo=StubMascotaRepo(None),
+    )
     response = client.get("/api/v1/mascotas/999/disponible")
+    _clear_overrides()
 
-    app.dependency_overrides.clear()
     assert response.status_code == 404
+    assert response.json()["code"] == "MASCOTA_NO_ENCONTRADA"
