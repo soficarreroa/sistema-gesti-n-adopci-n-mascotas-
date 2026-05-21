@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -9,6 +11,12 @@ from gateway.middleware.rate_limit import limiter
 from gateway.middleware.verify_user import VerifyUserMiddleware
 from gateway.routers.proxy import router as proxy_router
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(name)s] %(levelname)s %(message)s",
+)
+logger = logging.getLogger("gateway")
+
 app = FastAPI(title="API Gateway - Sistema de Gestión de Adopciones de Mascotas")
 
 app.state.limiter = limiter
@@ -16,6 +24,7 @@ app.state.limiter = limiter
 
 @app.exception_handler(RateLimitExceeded)
 async def _rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    logger.warning("rate_limit exceeded %s %s", request.method, request.url.path)
     return JSONResponse(
         status_code=429,
         content={
@@ -25,16 +34,27 @@ async def _rate_limit_handler(request: Request, exc: RateLimitExceeded):
     )
 
 
+@app.exception_handler(Exception)
+async def _unhandled_handler(request: Request, exc: Exception):
+    logger.exception(
+        "Unhandled exception %s %s: %s",
+        request.method, request.url.path, exc,
+    )
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal Server Error", "code": "INTERNAL_ERROR"},
+    )
+
+
+app.add_middleware(VerifyUserMiddleware)  # innermost — runs last before router
+app.add_middleware(AuthMiddleware)
+app.add_middleware(HTTPSEnforceMiddleware)
 app.add_middleware(
-    CORSMiddleware,
+    CORSMiddleware,  # outermost — runs first
     allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-app.add_middleware(HTTPSEnforceMiddleware)
-app.add_middleware(AuthMiddleware)
-app.add_middleware(VerifyUserMiddleware)
 
 app.include_router(proxy_router)

@@ -62,7 +62,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             payload = jwt.decode(
                 token,
                 key,
-                algorithms=["RS256"],
+                algorithms=["RS256", "ES256"],
                 audience="authenticated",
                 options={"verify_exp": True},
             )
@@ -86,10 +86,11 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
             request.state.user_cedula = str(cedula)
 
-        except Exception:
+        except Exception as e:
             return JSONResponse(
                 status_code=401,
-                content={"detail": "Token inválido", "code": "INVALID_TOKEN"},
+                content={"detail": str(e), "code": "INVALID_TOKEN"},
             )
+            
 
         return await call_next(request)

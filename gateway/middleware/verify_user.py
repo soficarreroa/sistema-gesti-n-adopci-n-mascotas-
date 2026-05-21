@@ -1,4 +1,5 @@
 import asyncio
+import logging
 
 from fastapi import Request
 from sqlalchemy import text
@@ -6,6 +7,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
 from gateway.dependencies import get_engine
+
+logger = logging.getLogger("gateway.verify_user")
 
 
 class VerifyUserMiddleware(BaseHTTPMiddleware):
@@ -35,6 +38,7 @@ class VerifyUserMiddleware(BaseHTTPMiddleware):
 
         try:
             exists = await asyncio.to_thread(_check_user)
+            logger.info("verify_user cedula=%s exists=%s", cedula, exists)
             if not exists:
                 return JSONResponse(
                     status_code=403,
@@ -43,7 +47,8 @@ class VerifyUserMiddleware(BaseHTTPMiddleware):
                         "code": "FORBIDDEN",
                     },
                 )
-        except Exception:
+        except Exception as exc:
+            logger.exception("Error verificando adoptante %s: %s", cedula, exc)
             return JSONResponse(
                 status_code=500,
                 content={
